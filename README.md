@@ -9,6 +9,7 @@ Lightweight Python desktop app to clone a web page into a local folder, download
 - __CSS secondary assets__: Downloads `url()` and `@import` refs (images, relative fonts) and rewrites paths in CSS.
 - __Preview mode__: When enabled, limits downloads to 1 asset per type (img/js/css/video/fonts/other) and 1 CSS ref per file for a quick sanity check.
 - __Automatic PHP content__: Generates `content.php` with product name placeholder and CTA link updates.
+- __Error Summary + Copy__: Aggregates `ERROR`/`WARNING` lines and provides a "Copy Errors" button to copy them to clipboard.
 - __Ignore SSL option__: Toggle to skip SSL verification for testing.
 
 ## Quick Start (Windows)
@@ -28,6 +29,7 @@ python -m app.main
 3. Optionally enable Preview (faster, minimal assets) and/or Ignore SSL.
 4. Click Download. The UI shows status, progress, elapsed/ETA, and per-asset rows.
 5. After completion, `content.php` is generated automatically using your Product Name and CTA link placeholders.
+6. Use the "Copy Errors" button to copy a consolidated error list for quick sharing.
 
 ## Output
 - `index.html` – Raw HTML of the starting URL (exact server response).
@@ -39,6 +41,7 @@ python -m app.main
 - Fonts: Absolute font URLs are left as-is; relative font URLs are downloaded to `fonts/`.
 - Iframes and non-stylesheet links (icons, manifests) are saved under `other/`.
 - No headless rendering yet (no Playwright). Some JS-driven content may not be captured.
+- Error Summary collects log lines that begin with `ERROR` or `WARNING` and appends them at the end of each run for easy copying.
 
 ## Known Issues / Next Up
 - Heuristics: better prioritization than “first per type” in Preview.

@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+ - Added: Consolidated Error Summary in logs and a "Copy Errors" button in the UI to quickly copy all ERROR/WARNING lines.
 
 ## [2025-09-01]
 

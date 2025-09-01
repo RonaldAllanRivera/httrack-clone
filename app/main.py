@@ -48,6 +48,7 @@ class App(tk.Tk):
         # Per-asset UI state
         self._asset_rows: dict[tuple[str, str], dict] = {}
         self._asset_cancel_flags: set[tuple[str, str]] = set()
+        self._error_lines: list[str] = []
 
         self._build_ui()
 
@@ -121,6 +122,7 @@ class App(tk.Tk):
 
         # Logs
         ttk.Label(frm, text="Logs").grid(row=11, column=0, sticky=tk.W, **pad)
+        ttk.Button(frm, text="Copy Errors", command=self._copy_errors).grid(row=11, column=4, sticky=tk.E, **pad)
         self.log = ScrolledText(frm, height=10, state="disabled")
         self.log.grid(row=12, column=0, columnspan=5, sticky=tk.NSEW, **pad)
 
@@ -164,6 +166,7 @@ class App(tk.Tk):
         self.progress.start(10)
         self._start_timer()
         self._clear_log()
+        self._error_lines.clear()
         self._clear_assets()
         self._asset_cancel_flags.clear()
         start_line = f"Starting job: product='{product}', url='{url}' -> root='{root}'"
@@ -233,6 +236,8 @@ class App(tk.Tk):
             self.progress.config(mode="indeterminate", value=0)
         except Exception:
             pass
+        # Append error summary for easy copy
+        self._append_error_summary()
 
     def _on_download_error(self, e: Exception):
         self.status_var.set("Error during download.")
@@ -251,6 +256,8 @@ class App(tk.Tk):
             self.progress.config(mode="indeterminate", value=0)
         except Exception:
             pass
+        # Append error summary for easy copy
+        self._append_error_summary()
 
     def _on_asset_event(self, event: str, kind: str, url: str, meta: dict):
         key = (kind, url)
@@ -344,6 +351,8 @@ class App(tk.Tk):
             self.progress.config(mode="indeterminate", value=0)
         except Exception:
             pass
+        # Append error summary for easy copy
+        self._append_error_summary()
 
     def _on_progress(self, done: int, total: int, stage: str):
         # Switch to determinate mode on first progress
@@ -443,6 +452,13 @@ class App(tk.Tk):
                 pass
 
     def _append_log(self, line: str):
+        # Collect errors/warnings for summary
+        try:
+            upper = (line or "").strip().upper()
+            if upper.startswith("ERROR") or upper.startswith("WARNING"):
+                self._error_lines.append(line)
+        except Exception:
+            pass
         try:
             self.log.config(state="normal")
             self.log.insert(tk.END, line + "\n")
@@ -466,6 +482,31 @@ class App(tk.Tk):
             self._asset_rows.clear()
         except Exception:
             pass
+
+    def _append_error_summary(self):
+        try:
+            if not self._error_lines:
+                return
+            # Write directly to the log to avoid re-collecting duplicates
+            self.log.config(state="normal")
+            self.log.insert(tk.END, "\n")
+            self.log.insert(tk.END, f"----- Error Summary ({len(self._error_lines)}) -----\n")
+            for l in self._error_lines:
+                self.log.insert(tk.END, l + "\n")
+            self.log.see(tk.END)
+            self.log.config(state="disabled")
+        except Exception:
+            pass
+
+    def _copy_errors(self):
+        try:
+            text = "\n".join(self._error_lines).strip()
+            self.clipboard_clear()
+            if text:
+                self.clipboard_append(text)
+            messagebox.showinfo("Copy Errors", "Errors copied to clipboard." if text else "No errors to copy.")
+        except Exception:
+            messagebox.showerror("Copy Errors", "Failed to copy errors to clipboard.")
 
     def _stop_timer(self):
         if self._timer_job:
