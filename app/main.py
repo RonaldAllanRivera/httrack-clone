@@ -8,7 +8,7 @@ from tkinter import ttk, filedialog, messagebox
 import time
 from tkinter.scrolledtext import ScrolledText
 
-from bs4 import BeautifulSoup
+ 
 
 from app.core.downloader import download_site
 
@@ -77,8 +77,7 @@ class App(tk.Tk):
         self.btn_cancel.grid(row=3, column=0, sticky=tk.W, **pad)
         self.btn_download = ttk.Button(frm, text="Download", command=self._start_download)
         self.btn_download.grid(row=3, column=1, sticky=tk.W, **pad)
-        self.btn_review = ttk.Button(frm, text="Open Review", command=self._open_review, state=tk.DISABLED)
-        self.btn_review.grid(row=3, column=2, sticky=tk.W, **pad)
+        
         self.chk_preview = ttk.Checkbutton(frm, text="Preview (1 per type)", variable=self.preview_var)
         self.chk_preview.grid(row=3, column=3, sticky=tk.W, **pad)
         self.chk_insecure = ttk.Checkbutton(frm, text="Ignore SSL errors (insecure)", variable=self.insecure_ssl_var)
@@ -155,7 +154,6 @@ class App(tk.Tk):
 
         # Disable UI during download
         self.btn_download.config(state=tk.DISABLED)
-        self.btn_review.config(state=tk.DISABLED)
         self.btn_cancel.config(state=tk.NORMAL)
         self._cancel_requested = False
         self.status_var.set("Downloading... This may take a while.")
@@ -228,17 +226,6 @@ class App(tk.Tk):
         self.progress.stop()
         self._stop_timer()
         self.btn_download.config(state=tk.NORMAL)
-        exists_any = (
-            self._last_folder
-            and (
-                (self._last_folder / "local-index.html").exists()
-                or (self._last_folder / "index.html").exists()
-            )
-        )
-        if exists_any:
-            self.btn_review.config(state=tk.NORMAL)
-        else:
-            self.btn_review.config(state=tk.DISABLED)
         self.btn_cancel.config(state=tk.DISABLED)
         self._cancel_requested = False
         # Reset progress bar for next run
@@ -246,8 +233,6 @@ class App(tk.Tk):
             self.progress.config(mode="indeterminate", value=0)
         except Exception:
             pass
-        if messagebox.askyesno("Download complete", f"{message}\n\nOpen review window now?"):
-            self._open_review()
 
     def _on_download_error(self, e: Exception):
         self.status_var.set("Error during download.")
@@ -258,7 +243,6 @@ class App(tk.Tk):
         self.progress.stop()
         self._stop_timer()
         self.btn_download.config(state=tk.NORMAL)
-        self.btn_review.config(state=tk.DISABLED)
         messagebox.showerror("Download failed", str(e))
         self.btn_cancel.config(state=tk.DISABLED)
         self._cancel_requested = False
@@ -353,7 +337,6 @@ class App(tk.Tk):
         self.progress.stop()
         self._stop_timer()
         self.btn_download.config(state=tk.NORMAL)
-        self.btn_review.config(state=tk.DISABLED)
         self.btn_cancel.config(state=tk.DISABLED)
         self._cancel_requested = False
         # Reset progress bar for next run
@@ -493,86 +476,6 @@ class App(tk.Tk):
             self._timer_job = None
         self._start_ts = None
 
-    def _open_review(self):
-        folder = self._last_folder
-        if not folder:
-            messagebox.showinfo("Review", "No job folder yet. Run a download first.")
-            return
-        preferred = folder / "local-index.html"
-        fallback = folder / "index.html"
-        if not preferred.exists() and not fallback.exists():
-            messagebox.showerror("Review", "No HTML found. Expected local-index.html or index.html.")
-            return
-
-        ReviewWindow(self, folder)
-
-
-class ReviewWindow(tk.Toplevel):
-    def __init__(self, master: App, folder: Path):
-        super().__init__(master)
-        self.title("Manual Script Review")
-        self.geometry("800x500")
-        self.folder = folder
-
-        # Prefer localized HTML if available; fallback to raw index.html
-        preferred = self.folder / "local-index.html"
-        self.src_path = preferred if preferred.exists() else (self.folder / "index.html")
-        html = self.src_path.read_text(encoding="utf-8", errors="ignore")
-        soup = BeautifulSoup(html, "html.parser")
-
-        self.scripts = []  # list of (idx, label)
-        for i, tag in enumerate(soup.find_all("script")):
-            src = tag.get("src")
-            if src:
-                label = f"src: {src}"
-            else:
-                content = (tag.string or "").strip()
-                label = (content[:80] + "...") if content and len(content) > 80 else (content or "inline script")
-            self.scripts.append((i, label))
-
-        # UI
-        frm = ttk.Frame(self)
-        frm.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        ttk.Label(frm, text=f"Folder: {self.folder}").pack(anchor=tk.W, pady=(0, 6))
-
-        self.listbox = tk.Listbox(frm, selectmode=tk.EXTENDED)
-        self.listbox.pack(fill=tk.BOTH, expand=True)
-        for idx, label in self.scripts:
-            self.listbox.insert(tk.END, f"[{idx}] {label}")
-
-        btns = ttk.Frame(frm)
-        btns.pack(fill=tk.X, pady=8)
-        label_text = (
-            "Create clean-local-index.html" if self.src_path.name == "local-index.html" else "Create clean-index.html"
-        )
-        ttk.Button(btns, text=label_text, command=self._apply).pack(side=tk.LEFT)
-        ttk.Button(btns, text="Close", command=self.destroy).pack(side=tk.RIGHT)
-
-    def _apply(self):
-        selected = self.listbox.curselection()  # tuple of positions in listbox
-        remove_idx = set()
-        for pos in selected:
-            idx, _ = self.scripts[pos]
-            remove_idx.add(idx)
-
-        src_path = self.src_path
-        # Decide output name to avoid overwriting the raw index.html
-        if src_path.name == "local-index.html":
-            clean_path = self.folder / "clean-local-index.html"
-        else:
-            clean_path = self.folder / "clean-index.html"
-
-        html = src_path.read_text(encoding="utf-8", errors="ignore")
-        soup = BeautifulSoup(html, "html.parser")
-
-        for i, tag in enumerate(list(soup.find_all("script"))):
-            if i in remove_idx:
-                tag.decompose()
-
-        clean_path.write_text(soup.prettify(), encoding="utf-8")
-        messagebox.showinfo("Review", f"Saved {clean_path}")
-        self.destroy()
 
 
 if __name__ == "__main__":

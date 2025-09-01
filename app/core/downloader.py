@@ -592,6 +592,13 @@ async def download_site(
             if log_cb:
                 log_cb("WARNING  failed to write local-index.html")
 
+        # Generate PHP content file based on localized or raw HTML
+        try:
+            _generate_content_php(folder, product_name, log_cb)
+        except Exception:
+            if log_cb:
+                log_cb("WARNING  failed to generate content.php")
+
     counts = {k: len(v) for k, v in assets.items()}
     return DownloadResult(
         product_name=product_name,
@@ -601,3 +608,44 @@ async def download_site(
         index_path=index_path,
         counts=counts,
     )
+
+
+def _generate_content_php(folder: Path, product_name: str, log_cb: Optional[Callable[[str], None]] = None) -> Path:
+    """
+    Create content.php in the given folder by:
+    - Replacing all occurrences of the product name with <?=$productName;?>
+    - Updating <a> tags whose visible text contains 'order' (case-insensitive)
+      so that href becomes <?php echo $ctaLink; ?>
+
+    We avoid BeautifulSoup escaping PHP in attributes by first writing a placeholder
+    in href and then string-replacing after serialization.
+    """
+    preferred = folder / "local-index.html"
+    fallback = folder / "index.html"
+    src = preferred if preferred.exists() else fallback
+    # If neither exists, raise
+    if not src.exists():
+        raise FileNotFoundError("No HTML source found to generate content.php")
+
+    html = src.read_text(encoding="utf-8", errors="ignore")
+    soup = BeautifulSoup(html, "html.parser")
+
+    PLACEHOLDER = "__PHPCTA_LINK__"
+
+    # Modify only anchors with visible text containing 'order'
+    for a in soup.find_all("a"):
+        text = a.get_text(strip=True) or ""
+        if "order" in text.lower():
+            a["href"] = PLACEHOLDER
+
+    # Serialize and apply textual replacements
+    out_html = str(soup)
+    if product_name:
+        out_html = out_html.replace(product_name, "<?=$productName;?>")
+    out_html = out_html.replace(PLACEHOLDER, "<?php echo $ctaLink; ?>")
+
+    out_path = folder / "content.php"
+    out_path.write_text(out_html, encoding="utf-8")
+    if log_cb:
+        log_cb("Saved PHP content -> content.php")
+    return out_path
