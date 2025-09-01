@@ -1,0 +1,40 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# PyInstaller build artifacts
+build/
+dist/
+dist-*/
+dist-clone/
+*.spec
+
+# Coverage / test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+coverage.xml
+htmlcov/
+
+# Logs and temp
+*.log
+*.tmp
+*.bak
+
+# OS/IDE files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.history/
+
+# Other package outputs
+node_modules/

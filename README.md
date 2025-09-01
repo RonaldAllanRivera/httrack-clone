@@ -1,6 +1,6 @@
 # HTTrack-like Clone (Tkinter Desktop)
 
-Lightweight Python desktop app to clone a web page into a local folder, download assets, and rewrite paths. Includes automatic generation of `content.php` with product name placeholder and CTA link updates.
+Desktop tool to mirror a single web page into a clean, portable folder. It downloads primary assets, resolves and fixes CSS references robustly, rewrites paths for local use, and generates `content.php` with dynamic placeholders — all without a headless browser.
 
 ## Features
 - __Desktop UI (Tkinter)__: Product, URL, download location, progress, ETA, logs, and per-asset transfers with cancel.
@@ -22,6 +22,30 @@ pip install -r requirements.txt
 # Run the desktop app
 python -m app.main
 ```
+
+## Build (Windows EXE)
+Create a portable executable with PyInstaller.
+
+```powershell
+# In your virtual environment
+pip install pyinstaller
+
+# Windowed single-file build (no console window)
+pyinstaller app/main.py --name httrack-clone --onefile --windowed
+
+# Or: keep console window to see logs
+pyinstaller app/main.py --name httrack-clone --onefile
+
+# Output: .\dist\httrack-clone.exe
+```
+
+Tips:
+- If an antivirus quarantines the exe, whitelist the `dist/` folder.
+- For verbose logs from the exe, use the non-windowed build and run from a terminal.
+- Build outputs are ignored by Git via `.gitignore`:
+  - `dist/` (default PyInstaller output)
+  - `build/` (intermediate files)
+  - `dist-clone/` (alternate output name in some runs)
 
 ## Usage
 1. Enter Product Name and the URL to clone.
