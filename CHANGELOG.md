@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
  - Added: Consolidated Error Summary in logs and a "Copy Errors" button in the UI to quickly copy all ERROR/WARNING lines.
  - Added: content.php generation now inserts `<?= $headers; ?>` on the line immediately after the closing `</title>` tag.
+ - Added: Robust CSS resolver for `url()`/`@import` that tries multiple base candidates to fix broken relative paths.
+ - Added: Non-font CSS assets are saved to a dedicated `css_img/` folder and CSS is rewritten accordingly.
 
 ## [2025-09-01]
 

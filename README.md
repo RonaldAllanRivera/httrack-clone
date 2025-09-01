@@ -6,7 +6,7 @@ Lightweight Python desktop app to clone a web page into a local folder, download
 - __Desktop UI (Tkinter)__: Product, URL, download location, progress, ETA, logs, and per-asset transfers with cancel.
 - __Raw main page first__: Saves the server response immediately to `index.html`.
 - __Localized copy__: Saves a rewritten version (local asset paths) to `local-index.html`.
-- __CSS secondary assets__: Downloads `url()` and `@import` refs (images, relative fonts) and rewrites paths in CSS.
+- __CSS secondary assets__: Robust resolver for `url()` and `@import` refs (tries CSS URL, page URL, and host roots). Saves non-font CSS assets to `css_img/` and rewrites CSS paths (relative fonts only).
 - __Preview mode__: When enabled, limits downloads to 1 asset per type (img/js/css/video/fonts/other) and 1 CSS ref per file for a quick sanity check.
 - __Automatic PHP content__: Generates `content.php` with product name placeholder and CTA link updates.
 - __Error Summary + Copy__: Aggregates `ERROR`/`WARNING` lines and provides a "Copy Errors" button to copy them to clipboard.
@@ -36,10 +36,11 @@ python -m app.main
 - `local-index.html` – HTML with asset paths rewritten to local files.
 - `content.php` – HTML with product name replaced by `<?=$productName;?>` and anchors with text containing "order" pointing href to `<?php echo $ctaLink; ?>`.
   Also inserts `<?= $headers; ?>` on the next line after the closing `</title>` tag.
-- Asset folders: `img/`, `js/`, `css/`, `video/`, `fonts/`, `other/`.
+- Asset folders: `img/`, `js/`, `css/`, `video/`, `fonts/`, `css_img/`, `other/`.
 
 ## Notes
 - Fonts: Absolute font URLs are left as-is; relative font URLs are downloaded to `fonts/`.
+- CSS images/sprites/backgrounds referenced from CSS are saved under `css_img/` and CSS files are rewritten to point to these local paths.
 - Iframes and non-stylesheet links (icons, manifests) are saved under `other/`.
 - No headless rendering yet (no Playwright). Some JS-driven content may not be captured.
 - Error Summary collects log lines that begin with `ERROR` or `WARNING` and appends them at the end of each run for easy copying.

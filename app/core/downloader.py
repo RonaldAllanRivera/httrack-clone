@@ -430,6 +430,218 @@ async def process_css_files(
         css_file_path.write_text(css_text, encoding="utf-8", errors="ignore")
 
 
+async def process_css_files_with_fallbacks(
+    client: httpx.AsyncClient,
+    css_map: Dict[str, str],  # url -> rel_path
+    base_folder: Path,
+    page_base_url: str,
+    progress_cb: Optional[Callable[[int, int, str], None]] = None,
+    log_cb: Optional[Callable[[str], None]] = None,
+    cancel_cb: Optional[Callable[[], bool]] = None,
+    limit_refs: Optional[int] = None,
+    asset_cb: Optional[Callable[[str, str, str, Dict[str, int | str | None]], None]] = None,
+    asset_cancel_cb: Optional[Callable[[str, str], bool]] = None,
+) -> None:
+    """
+    Enhanced CSS asset downloader that:
+    - Tries multiple base URL candidates to resolve broken relative paths
+    - Saves non-font CSS assets into a dedicated 'css_img/' folder
+    - Rewrites CSS refs to local paths
+    """
+    # First pass: count refs
+    total_refs = 0
+    for _, rel_path in css_map.items():
+        css_file_path = base_folder / rel_path
+        try:
+            css_text = css_file_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            try:
+                css_text = css_file_path.read_text(encoding="latin-1", errors="ignore")
+            except Exception:
+                continue
+        sheet = cssutils.parseString(css_text)
+        count_in_css = 0
+        for rule in sheet:
+            if rule.type == rule.IMPORT_RULE:
+                count_in_css += 1
+            if rule.type == rule.STYLE_RULE:
+                for prop in rule.style:
+                    if "url(" in prop.value:
+                        for part in prop.value.split("url("):
+                            if ")" in part:
+                                count_in_css += 1
+        total_refs += min(count_in_css, limit_refs) if limit_refs is not None else count_in_css
+
+    completed_refs = 0
+    if progress_cb and total_refs > 0:
+        progress_cb(0, total_refs, "css-assets")
+
+    page_parsed = urlparse(page_base_url)
+    page_host_root = f"{page_parsed.scheme}://{page_parsed.netloc}/" if page_parsed.scheme and page_parsed.netloc else page_base_url
+
+    for css_url, rel_path in css_map.items():
+        if cancel_cb and cancel_cb():
+            if log_cb:
+                log_cb("CANCELLED before CSS processing (fallbacks)")
+            break
+        css_file_path = base_folder / rel_path
+        try:
+            css_text = css_file_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            try:
+                css_text = css_file_path.read_text(encoding="latin-1", errors="ignore")
+            except Exception:
+                continue
+
+        sheet = cssutils.parseString(css_text)
+        downloaded: Dict[str, str] = {}
+
+        async def download_ref_with_fallbacks(ref_url: str) -> Optional[str]:
+            # Build absolute URL candidates
+            candidates: List[str] = []
+            try:
+                candidates.append(urljoin(css_url, ref_url))
+            except Exception:
+                pass
+            try:
+                candidates.append(urljoin(page_base_url, ref_url))
+            except Exception:
+                pass
+            try:
+                candidates.append(urljoin(page_host_root, ref_url))
+            except Exception:
+                pass
+            try:
+                css_parsed = urlparse(css_url)
+                css_host_root = f"{css_parsed.scheme}://{css_parsed.netloc}/" if css_parsed.scheme and css_parsed.netloc else css_url
+                candidates.append(urljoin(css_host_root, ref_url))
+            except Exception:
+                pass
+
+            # Deduplicate while preserving order
+            seen = set()
+            uniq_candidates = []
+            for u in candidates:
+                if not u or u in seen:
+                    continue
+                uniq_candidates.append(u)
+                seen.add(u)
+
+            # Attempt downloads
+            last_error = None
+            for abs_url in uniq_candidates:
+                try:
+                    if cancel_cb and cancel_cb():
+                        if log_cb:
+                            log_cb(f"CANCELLED css ref: {ref_url}")
+                        return None
+                    async with client.stream("GET", abs_url, follow_redirects=True, timeout=None) as r:
+                        r.raise_for_status()
+                        total = None
+                        try:
+                            total = int(r.headers.get("content-length")) if r.headers.get("content-length") else None
+                        except Exception:
+                            total = None
+                        if asset_cb:
+                            asset_cb("start", "css", abs_url, {"total": total})
+
+                        # Choose folder: fonts remain in fonts/, others go to css_img/
+                        # Preserve original behavior: only download fonts if the original ref was relative
+                        if is_font_url(abs_url):
+                            if not is_relative_url(ref_url):
+                                if asset_cb:
+                                    asset_cb("skip", "css", abs_url, {"reason": "absolute-font"})
+                                return None
+                            kind_folder = ASSET_FOLDERS["fonts"]
+                        else:
+                            kind_folder = "css_img"
+
+                        ctype = r.headers.get("content-type")
+                        name = normalize_filename(abs_url, ctype)
+                        rel = f"{kind_folder}/{name}"
+                        out = base_folder / rel
+                        out.parent.mkdir(parents=True, exist_ok=True)
+
+                        bytes_read = 0
+                        cancelled_midway = False
+                        with open(out, "wb") as f:
+                            async for chunk in r.aiter_bytes(chunk_size=65536):
+                                if (cancel_cb and cancel_cb()) or (asset_cancel_cb and asset_cancel_cb("css", abs_url)):
+                                    cancelled_midway = True
+                                    break
+                                if not chunk:
+                                    continue
+                                f.write(chunk)
+                                bytes_read += len(chunk)
+                                if asset_cb:
+                                    asset_cb("progress", "css", abs_url, {"read": bytes_read, "total": total})
+
+                        if cancelled_midway:
+                            try:
+                                out.unlink(missing_ok=True)
+                            except Exception:
+                                pass
+                            if asset_cb:
+                                asset_cb("cancelled", "css", abs_url, {})
+                            if log_cb:
+                                log_cb(f"CANCELLED css ref: {ref_url}")
+                            return None
+
+                        downloaded[abs_url] = rel
+                        if log_cb:
+                            log_cb(f"Saved     [css] {rel}")
+                        if asset_cb:
+                            asset_cb("done", "css", abs_url, {"rel": rel})
+                        return rel
+                except Exception as e:
+                    last_error = e
+                    # try next candidate
+                    continue
+
+            # All candidates failed
+            if log_cb:
+                log_cb(f"ERROR     [css] {ref_url}")
+            if asset_cb:
+                asset_cb("error", "css", ref_url, {})
+            return None
+
+        # Collect refs
+        refs: List[str] = []
+        for rule in sheet:
+            if rule.type == rule.IMPORT_RULE:
+                href = rule.href
+                if href:
+                    refs.append(href)
+            if rule.type == rule.STYLE_RULE:
+                for prop in rule.style:
+                    if "url(" in prop.value:
+                        val = prop.value
+                        parts = val.split("url(")
+                        for part in parts[1:]:
+                            end = part.find(")")
+                            if end != -1:
+                                url_candidate = part[:end].strip("\"'")
+                                refs.append(url_candidate)
+        if limit_refs is not None:
+            refs = refs[:limit_refs]
+
+        # Download and rewrite
+        for ref in refs:
+            if ref.startswith("data:"):
+                completed_refs += 1
+                if progress_cb and total_refs > 0:
+                    progress_cb(completed_refs, total_refs, "css-assets")
+                continue
+            rel = await download_ref_with_fallbacks(ref)
+            if rel:
+                css_text = css_text.replace(ref, rel)
+            completed_refs += 1
+            if progress_cb and total_refs > 0:
+                progress_cb(completed_refs, total_refs, "css-assets")
+
+        css_file_path.write_text(css_text, encoding="utf-8", errors="ignore")
+
+
 def rewrite_html_paths(
     soup: BeautifulSoup,
     base_url: str,
@@ -568,7 +780,8 @@ async def download_site(
             if log_cb:
                 log_cb("CANCELLED before CSS processing")
             raise asyncio.CancelledError()
-        await process_css_files(
+        # Use enhanced CSS processing with fallbacks and css_img output
+        await process_css_files_with_fallbacks(
             client,
             mapping_by_type["css"],
             folder,
