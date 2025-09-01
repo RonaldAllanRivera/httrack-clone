@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
+import re
 import hashlib
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Tuple
@@ -643,6 +644,11 @@ def _generate_content_php(folder: Path, product_name: str, log_cb: Optional[Call
     if product_name:
         out_html = out_html.replace(product_name, "<?=$productName;?>")
     out_html = out_html.replace(PLACEHOLDER, "<?php echo $ctaLink; ?>")
+    # Insert PHP headers snippet right after the </title> closing tag (case-insensitive)
+    try:
+        out_html = re.sub(r'(</title\s*>)', r'\1\n<?= $headers; ?>', out_html, count=1, flags=re.IGNORECASE)
+    except Exception:
+        pass
 
     out_path = folder / "content.php"
     out_path.write_text(out_html, encoding="utf-8")

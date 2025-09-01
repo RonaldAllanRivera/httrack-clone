@@ -35,6 +35,7 @@ python -m app.main
 - `index.html` – Raw HTML of the starting URL (exact server response).
 - `local-index.html` – HTML with asset paths rewritten to local files.
 - `content.php` – HTML with product name replaced by `<?=$productName;?>` and anchors with text containing "order" pointing href to `<?php echo $ctaLink; ?>`.
+  Also inserts `<?= $headers; ?>` on the next line after the closing `</title>` tag.
 - Asset folders: `img/`, `js/`, `css/`, `video/`, `fonts/`, `other/`.
 
 ## Notes

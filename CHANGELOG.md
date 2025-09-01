@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
  - Added: Consolidated Error Summary in logs and a "Copy Errors" button in the UI to quickly copy all ERROR/WARNING lines.
+ - Added: content.php generation now inserts `<?= $headers; ?>` on the line immediately after the closing `</title>` tag.
 
 ## [2025-09-01]
 
