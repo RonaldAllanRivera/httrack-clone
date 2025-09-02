@@ -714,6 +714,26 @@ def rewrite_html_paths(
                 tag["src"] = r
 
 
+def strip_srcset_attributes(soup: BeautifulSoup, log_cb: Optional[Callable[[str], None]] = None) -> int:
+    """
+    Remove all srcset attributes from <img> and <source> tags in the given soup.
+    This is dynamic and does not depend on specific values; any srcset found will be dropped.
+    Returns the count of removed attributes.
+    """
+    removed = 0
+    for tag in soup.find_all(["img", "source"]):
+        if tag.has_attr("srcset"):
+            try:
+                del tag["srcset"]
+                removed += 1
+            except Exception:
+                # ignore per-tag errors to keep processing resilient
+                pass
+    if log_cb:
+        log_cb(f"Cleaned srcset attributes -> removed {removed}")
+    return removed
+
+
 async def download_site(
     url: str,
     product_name: str,
@@ -796,6 +816,8 @@ async def download_site(
 
         # Rewrite paths in HTML
         rewrite_html_paths(soup, base_url, mapping_by_type)
+        # Remove responsive srcset attributes to produce a simplified, stable local HTML
+        strip_srcset_attributes(soup, log_cb)
 
         # Save modified HTML to a separate localized file, do not overwrite the raw index.html
         try:
