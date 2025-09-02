@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
  - Docs: Refreshed overview section to better communicate capabilities and workflow.
  - Repo: Added .gitignore to exclude build outputs (dist/, build/, dist-clone/), virtualenv (.venv/), caches, and IDE files.
  - Changed: Strip all `srcset` attributes from `<img>`/`<source>` before saving `local-index.html`; `content.php` is generated from this cleaned HTML.
+ - Changed: Strip `onclick="nextPage()"` handlers during HTML post-processing before saving `local-index.html`.
 
 ## [2025-09-01]
 

@@ -8,6 +8,7 @@ Desktop tool to mirror a single web page into a clean, portable folder. It downl
 - __Localized copy__: Saves a rewritten version (local asset paths) to `local-index.html`.
 - __CSS secondary assets__: Robust resolver for `url()` and `@import` refs (tries CSS URL, page URL, and host roots). Saves non-font CSS assets to `css_img/` and rewrites CSS paths (relative fonts only).
 - __Responsive cleanup__: Strips `srcset` from `<img>`/`<source>` to produce a stable, simplified local HTML.
+- __Interactive cleanup__: Removes `onclick="nextPage()"` handlers to stabilize local navigation.
 - __Preview mode__: When enabled, limits downloads to 1 asset per type (img/js/css/video/fonts/other) and 1 CSS ref per file for a quick sanity check.
 - __Automatic PHP content__: Generates `content.php` with product name placeholder and CTA link updates.
 - __Error Summary + Copy__: Aggregates `ERROR`/`WARNING` lines and provides a "Copy Errors" button to copy them to clipboard.
@@ -70,6 +71,7 @@ Tips:
 - No headless rendering yet (no Playwright). Some JS-driven content may not be captured.
 - Error Summary collects log lines that begin with `ERROR` or `WARNING` and appends them at the end of each run for easy copying.
  - `content.php` is generated from the cleaned `local-index.html` (after path rewrites and `srcset` stripping).
+ - `onclick="nextPage()"` attributes are stripped from elements in the localized HTML.
 
 ## Known Issues / Next Up
 - Heuristics: better prioritization than “first per type” in Preview.

@@ -734,6 +734,27 @@ def strip_srcset_attributes(soup: BeautifulSoup, log_cb: Optional[Callable[[str]
     return removed
 
 
+def strip_onclick_nextpage_attributes(soup: BeautifulSoup, log_cb: Optional[Callable[[str], None]] = None) -> int:
+    """
+    Remove onclick attributes whose value is exactly nextPage() (optionally with whitespace/semicolon)
+    from any HTML tag. This is dynamic and tolerant of spacing, e.g., " nextPage(); ".
+    Returns the count of removed attributes.
+    """
+    removed = 0
+    pattern = re.compile(r"^\s*nextPage\(\)\s*;?\s*$")
+    for tag in soup.find_all(True):  # all tags
+        val = tag.get("onclick")
+        if isinstance(val, str) and pattern.match(val):
+            try:
+                del tag["onclick"]
+                removed += 1
+            except Exception:
+                pass
+    if log_cb:
+        log_cb(f"Cleaned onclick=nextPage() -> removed {removed}")
+    return removed
+
+
 async def download_site(
     url: str,
     product_name: str,
@@ -818,6 +839,8 @@ async def download_site(
         rewrite_html_paths(soup, base_url, mapping_by_type)
         # Remove responsive srcset attributes to produce a simplified, stable local HTML
         strip_srcset_attributes(soup, log_cb)
+        # Remove specific interactive handlers to stabilize the local copy
+        strip_onclick_nextpage_attributes(soup, log_cb)
 
         # Save modified HTML to a separate localized file, do not overwrite the raw index.html
         try:
