@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import posixpath
 from dataclasses import dataclass
 import re
 import hashlib
@@ -634,7 +635,20 @@ async def process_css_files_with_fallbacks(
                 continue
             rel = await download_ref_with_fallbacks(ref)
             if rel:
-                css_text = css_text.replace(ref, rel)
+                # Compute the correct relative path from the CSS file location to the asset location
+                css_dir_posix = posixpath.dirname(rel_path.replace("\\", "/"))
+                rel_posix = rel.replace("\\", "/")
+                try:
+                    rel_from_css = posixpath.relpath(rel_posix, start=css_dir_posix or ".")
+                except Exception:
+                    rel_from_css = rel_posix
+                # Replace url(...) occurrences for this ref with url('rel_from_css')
+                # Handles url(ref), url("ref"), url('ref') with optional whitespace
+                pattern = re.compile(r"url\(\s*(['\"]?)" + re.escape(ref) + r"\1\s*\)")
+                css_text = pattern.sub("url('" + rel_from_css + "')", css_text)
+                # Also handle @import statements that may be written as @import "ref" or @import url(ref)
+                pattern_import = re.compile(r"@import\s+(?:url\(\s*)?(['\"]?)" + re.escape(ref) + r"\1\s*\)?", re.IGNORECASE)
+                css_text = pattern_import.sub("@import url('" + rel_from_css + "')", css_text)
             completed_refs += 1
             if progress_cb and total_refs > 0:
                 progress_cb(completed_refs, total_refs, "css-assets")
