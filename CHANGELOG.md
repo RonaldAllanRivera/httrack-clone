@@ -7,9 +7,12 @@ All notable changes to this project will be documented in this file.
  - Added: content.php generation now inserts `<?= $headers; ?>` on the line immediately after the closing `</title>` tag.
  - Added: Robust CSS resolver for `url()`/`@import` that tries multiple base candidates to fix broken relative paths.
  - Added: Non-font CSS assets are saved to a dedicated `css_img/` folder and CSS is rewritten accordingly.
+ - Added: Ubuntu tutorial in README (native venv run + Docker Desktop noVNC + Docker X11 notes).
+ - Added: Docker compose now defaults host output to `~/Downloads/httrack-clone`.
  - Docs: Added Windows EXE build instructions using PyInstaller.
  - Docs: Refreshed overview section to better communicate capabilities and workflow.
  - Repo: Added .gitignore to exclude build outputs (dist/, build/, dist-clone/), virtualenv (.venv/), caches, and IDE files.
+ - Changed: Default download location now points to the OS `Downloads` folder by default (overridable via `HTCLONE_DOWNLOAD_ROOT`).
  - Changed: Strip all `srcset` attributes from `<img>`/`<source>` before saving `local-index.html`; `content.php` is generated from this cleaned HTML.
  - Changed: Strip `onclick="nextPage()"` handlers during HTML post-processing before saving `local-index.html`.
 

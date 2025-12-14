@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from pathlib import Path
 import tkinter as tk
@@ -13,8 +14,17 @@ from tkinter.scrolledtext import ScrolledText
 from app.core.downloader import download_site
 
 
-DEFAULT_ROOT = Path(r"e:\\Sites\\")
-DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
+def _default_root() -> Path:
+    env_root = os.environ.get("HTCLONE_DOWNLOAD_ROOT") or os.environ.get("DOWNLOAD_ROOT")
+    if env_root:
+        return Path(env_root).expanduser()
+    if os.name == "nt":
+        home = os.environ.get("USERPROFILE")
+        return (Path(home) if home else Path.home()) / "Downloads"
+    return Path.home() / "Downloads"
+
+
+DEFAULT_ROOT = _default_root()
 
 
 class App(tk.Tk):
@@ -22,6 +32,11 @@ class App(tk.Tk):
         super().__init__()
         self.title("HTTrack Clone - Desktop (Tkinter)")
         self.geometry("900x650")
+
+        try:
+            DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
 
         # Styles
         self.style = ttk.Style(self)

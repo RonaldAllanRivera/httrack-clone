@@ -1,0 +1,16 @@
+services:
+  httrack-clone:
+    build: .
+    image: httrack-clone:local
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/tmp/.Xauthority
+      - HTCLONE_DOWNLOAD_ROOT=/downloads
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-$HOME/.Xauthority}:/tmp/.Xauthority:ro
+      - ./downloads:/downloads
+    user: "${UID:-1000}:${GID:-1000}"
+    command: ["python3", "-m", "app.main"]
+    stdin_open: true
+    tty: true

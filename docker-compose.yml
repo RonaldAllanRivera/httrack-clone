@@ -1,0 +1,13 @@
+services:
+  httrack-clone:
+    build: .
+    image: httrack-clone:local
+    environment:
+      - HTCLONE_DOWNLOAD_ROOT=/downloads
+    volumes:
+      - ${HTCLONE_OUTPUT_DIR:-$HOME/Downloads/httrack-clone}:/downloads
+    ports:
+      - "6080:6080"
+    user: "${UID:-1000}:${GID:-1000}"
+    stdin_open: true
+    tty: true

@@ -25,6 +25,44 @@ pip install -r requirements.txt
 python -m app.main
 ```
 
+## Quick Start (Ubuntu)
+
+### Option A: Run natively (recommended for Tkinter)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-tk
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python -m app.main
+```
+
+### Option B: Run via Docker Desktop (noVNC)
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+`http://localhost:6080/vnc.html`
+
+Downloads are written to:
+
+`~/Downloads/httrack-clone`
+
+### Option C: Native host window from Docker (X11)
+
+This requires Docker access to mount `/tmp/.X11-unix` and is typically best with Docker Engine on Ubuntu.
+
+```bash
+xhost +local:docker
+docker compose -f docker-compose.x11.yml up --build
+```
+
 ## Build (Windows EXE)
 Create a portable executable with PyInstaller.
 
@@ -51,7 +89,7 @@ Tips:
 
 ## Usage
 1. Enter Product Name and the URL to clone.
-2. Choose a download location (defaults to `e:\\Sites\\`).
+2. Choose a download location (defaults to your OS `Downloads` folder).
 3. Optionally enable Preview (faster, minimal assets) and/or Ignore SSL.
 4. Click Download. The UI shows status, progress, elapsed/ETA, and per-asset rows.
 5. After completion, `content.php` is generated automatically using your Product Name and CTA link placeholders.
